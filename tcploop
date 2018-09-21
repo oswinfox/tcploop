@@ -1,0 +1,44 @@
+#!/bin/bash
+## tcploop
+# use openbsd-netcat
+
+do_tcploop()
+{
+	IP=$1
+	PORT=$2
+	local CHECK
+	if [ -z "$PORT" ]; then
+		PORT=22
+	fi
+
+	TCP_SCAN=$(nc -vz -w4 ${IP} ${PORT} 2>&1 | awk -F' ' 'NF>1{print $NF}')
+
+	if [[ $TCP_SCAN == *"succeeded!"* ]]; then
+		echo 'TCP' $1':' $TCP_SCAN 'on port' $2
+		return 1
+	elif [[ $TCP_SCAN == *"refused"* ]]; then
+		echo 'TCP' $1':' $TCP_SCAN 'on port' $2
+		do_tcploop $1 $2
+	elif [[ $TCP_SCAN == *"progress"* ]]; then
+		echo 'TCP' $1':' $TCP_SCAN 'on port' $2
+		do_tcploop $1 $2
+	fi
+}
+
+if [[ ( $1 == "--help" ||  $1 == "-h") ]]; then
+    echo -e "tcploop host port"
+		exit 1
+fi
+		do_tcploop $1 $2
+
+##DOCUMENTATION##
+# https://man.openbsd.org/nc
+## Is UPD wortly to test? Because UPD mechanisme does not answer as do TCP protocol.
+## If need to test that UDP packet is receive on the server try this:
+## On remote: # tcpdump -nli tun0 -s0 -A host 192.168.20.2 and port 500
+## On local:  # echo -n "hello world!" | nc -u -w1 192.168.20.3 500 -p 500
+## You should see:
+## listening on tun0, link-type RAW (Raw IP), capture size 262144 bytes
+## 17:07:03.837216 IP 192.168.20.2.41481 > 192.168.20.3.500: [|isakmp]
+## E..!..@.@............   ....n.hello world!
+# https://unix.stackexchange.com/questions/235830/how-does-netcat-know-if-a-udp-port-is-open
